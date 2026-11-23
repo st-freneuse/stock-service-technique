@@ -4,88 +4,411 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Stock - Scanner</title>
+  <title>Stock - Service technique Freneuse</title>
+
   <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
-  <style>
-    body { font-family: Arial; text-align: center; padding: 20px; }
-    button, a {
-      display: block; width: 100%; padding: 15px; margin-top: 15px;
-      box-sizing: border-box; background: #234b36; color: white;
-      border: 0; border-radius: 6px; font-size: 18px; text-decoration: none;
-    }
-    input {
-      width: 100%; padding: 15px; margin-top: 10px;
-      box-sizing: border-box; font-size: 18px;
-    }
-    #reader { width: 100%; max-width: 400px; margin: 20px auto; }
-  </style>
+
   <link rel="icon" type="image/jpeg" href="./image_36bf3497.jpg">
-<link rel="apple-touch-icon" href="./image_36bf3497.jpg">
-<link rel="manifest" href="./manifest.json">
+  <link rel="apple-touch-icon" href="./image_36bf3497.jpg">
+  <link rel="manifest" href="./manifest.json">
+
+  <style>
+    * { box-sizing: border-box; }
+
+    body {
+      font-family: Arial, sans-serif;
+      background: #f3f5f3;
+      margin: 0;
+      padding: 20px;
+      color: #222;
+    }
+
+    .container {
+      max-width: 500px;
+      margin: auto;
+      background: white;
+      padding: 20px;
+      border-radius: 12px;
+      box-shadow: 0 2px 10px #00000012;
+    }
+
+    h2 {
+      color: #234b36;
+      text-align: center;
+    }
+
+    h3 { margin-bottom: 10px; }
+
+    input, select, button {
+      width: 100%;
+      padding: 14px;
+      margin: 8px 0;
+      font-size: 16px;
+      border-radius: 6px;
+    }
+
+    input, select {
+      border: 1px solid #ccc;
+      background: white;
+    }
+
+    button {
+      background: #234b36;
+      color: white;
+      border: none;
+      cursor: pointer;
+    }
+
+    button:disabled {
+      opacity: 0.6;
+      cursor: wait;
+    }
+
+    .secondaire {
+      background: #64746a;
+    }
+
+    .bloc {
+      background: #f2f5f2;
+      padding: 15px;
+      border-radius: 8px;
+      margin-top: 18px;
+    }
+
+    .cache { display: none; }
+
+    #reader {
+      width: 100%;
+      margin: 15px auto;
+    }
+
+    #message {
+      text-align: center;
+      font-weight: bold;
+      margin-top: 15px;
+      min-height: 24px;
+    }
+
+    .stock {
+      font-size: 22px;
+      color: #234b36;
+      font-weight: bold;
+    }
+
+    label {
+      display: block;
+      margin-top: 12px;
+      font-weight: bold;
+    }
+  </style>
 </head>
+
 <body>
+<div class="container">
+
   <h2>Stock - Service technique Freneuse</h2>
 
-  <button id="start" onclick="demarrer()">📷 Ouvrir la caméra</button>
+  <div id="recherche">
+    <button id="start" onclick="demarrer()">📷 Ouvrir la caméra</button>
 
-  <div id="reader"></div>
+    <div id="reader"></div>
 
-  <p>OU</p>
+    <p style="text-align:center">OU</p>
 
-  <h3>Produit sans code-barres ?</h3>
-  <input id="reference" placeholder="Saisir la référence (ex. P003)">
-  <button onclick="ouvrirFiche(document.getElementById('reference').value)">
-    Rechercher le produit
-  </button>
+    <h3>Rechercher un produit</h3>
 
-  <p id="resultat">Prêt à scanner.</p>
-  <a id="fiche" hidden target="_blank" rel="noopener">
-    Ouvrir la fiche produit
-  </a>
+    <input
+      id="code"
+      placeholder="Saisir une référence ou un code-barres"
+    >
+
+    <button onclick="rechercher()">Rechercher le produit</button>
+  </div>
+
+  <div id="produit" class="bloc cache">
+    <h3 id="designation"></h3>
+
+    <p>Référence : <strong id="reference"></strong></p>
+    <p>Emplacement : <span id="emplacement"></span></p>
+
+    <p>Stock actuel :</p>
+    <div class="stock">
+      <span id="stock"></span>
+      <span id="unite"></span>
+    </div>
+
+    <div id="mouvement">
+      <h3>Enregistrer un mouvement</h3>
+
+      <label>Votre nom</label>
+      <select id="agent">
+        <option value="">Chargement des agents...</option>
+      </select>
+
+      <label>Code PIN à 4 chiffres</label>
+      <input
+        id="pin"
+        type="password"
+        inputmode="numeric"
+        maxlength="4"
+        placeholder="Votre PIN"
+      >
+
+      <label>Type de mouvement</label>
+      <select id="type">
+        <option value="Entrée">Entrée</option>
+        <option value="Sortie">Sortie</option>
+      </select>
+
+      <label>Quantité</label>
+      <input
+        id="quantite"
+        type="number"
+        min="1"
+        step="1"
+        placeholder="Quantité"
+      >
+
+      <button id="valider" onclick="enregistrer()">
+        Valider le mouvement
+      </button>
+    </div>
+
+    <button class="secondaire" onclick="nouvelleRecherche()">
+      Retour à la recherche
+    </button>
+  </div>
+
+  <p id="message">Prêt à scanner.</p>
+
+</div>
 
 <script>
   const APP_URL = "https://script.google.com/macros/s/AKfycbzxzKxRJ-qY73ns-wPvcJTMLCbpTH-5qvxRcFVOXCuID0fUAX167pQ5aXmWBn9GGTxy/exec";
-  let scanner;
 
-  function ouvrirFiche(code) {
-    code = code.trim();
+  let scanner = null;
+  let produitActuel = null;
+  let numeroCallback = 0;
+
+  window.stockCallbacks = {};
+
+  // Communication avec Google Apps Script
+  function appelerAPI(parametres) {
+    return new Promise(function(resolve, reject) {
+      const id = "cb" + (++numeroCallback);
+
+      window.stockCallbacks[id] = function(resultat) {
+        delete window.stockCallbacks[id];
+        script.remove();
+        resolve(resultat);
+      };
+
+      const script = document.createElement("script");
+
+      const donnees = new URLSearchParams({
+        ...parametres,
+        api: "1",
+        callback: "stockCallbacks." + id,
+        nocache: Date.now()
+      });
+
+      script.src = APP_URL + "?" + donnees.toString();
+
+      script.onerror = function() {
+        delete window.stockCallbacks[id];
+        script.remove();
+        reject(new Error("Impossible de contacter le serveur. Réessayez."));
+      };
+
+      document.head.appendChild(script);
+    });
+  }
+
+  // Charger la liste des agents
+  async function chargerAgents() {
+    try {
+      const agents = await appelerAPI({ action: "agents" });
+
+      const liste = document.getElementById("agent");
+      liste.innerHTML = '<option value="">Choisir votre nom</option>';
+
+      agents.forEach(function(nom) {
+        const option = document.createElement("option");
+        option.value = nom;
+        option.textContent = nom;
+        liste.appendChild(option);
+      });
+
+    } catch (e) {
+      afficherMessage(e.message);
+    }
+  }
+
+  // Recherche du produit
+  async function rechercher() {
+    const code = document.getElementById("code").value.trim();
 
     if (!code) {
-      document.getElementById("resultat").textContent =
-        "Saisissez une référence.";
+      afficherMessage("Saisissez une référence ou un code-barres.");
       return;
     }
 
-    const lien = document.getElementById("fiche");
-    lien.href = APP_URL + "?code=" + encodeURIComponent(code);
-    lien.hidden = false;
+    afficherMessage("Recherche en cours...");
 
-    document.getElementById("resultat").textContent =
-      "Référence saisie : " + code;
+    try {
+      const resultat = await appelerAPI({
+        action: "rechercher",
+        code: code
+      });
+
+      if (!resultat.trouve) {
+        produitActuel = null;
+        document.getElementById("produit").classList.add("cache");
+        afficherMessage("Produit introuvable.");
+        return;
+      }
+
+      afficherProduit(resultat);
+
+    } catch (e) {
+      afficherMessage(e.message);
+    }
   }
 
-  function demarrer() {
-    document.getElementById("fiche").hidden = true;
-    document.getElementById("resultat").textContent =
-      "Recherche du code-barres...";
+  // Afficher la fiche produit
+  function afficherProduit(produit) {
+    produitActuel = produit;
+
+    document.getElementById("designation").textContent = produit.designation;
+    document.getElementById("reference").textContent = produit.reference;
+    document.getElementById("emplacement").textContent =
+      produit.emplacement || "Non renseigné";
+    document.getElementById("stock").textContent = produit.stock;
+    document.getElementById("unite").textContent = produit.unite || "";
+
+    document.getElementById("produit").classList.remove("cache");
+
+    afficherMessage("");
+  }
+
+  // Démarrer le scanner
+  async function demarrer() {
+    if (scanner) {
+      try {
+        if (scanner.isScanning) await scanner.stop();
+        await scanner.clear();
+      } catch (e) {}
+    }
+
+    document.getElementById("start").disabled = true;
+    afficherMessage("Ouverture de la caméra...");
 
     scanner = new Html5Qrcode("reader");
 
     scanner.start(
       { facingMode: "environment" },
       { fps: 10, qrbox: { width: 250, height: 150 } },
-      function(code) {
-        scanner.stop();
-        document.getElementById("reference").value = code;
-        document.getElementById("resultat").textContent =
-          "Code détecté : " + code;
-        ouvrirFiche(code);
+
+      async function(code) {
+        document.getElementById("code").value = code;
+
+        try {
+          await scanner.stop();
+          await scanner.clear();
+        } catch (e) {}
+
+        document.getElementById("start").disabled = false;
+        rechercher();
       }
-    ).catch(function() {
-      document.getElementById("resultat").textContent =
-        "Impossible d'ouvrir la caméra. Vérifiez son autorisation.";
+
+    ).then(function() {
+      document.getElementById("start").disabled = false;
+      afficherMessage("Scannez un code-barres.");
+    }).catch(function() {
+      document.getElementById("start").disabled = false;
+      afficherMessage("Impossible d'ouvrir la caméra. Vérifiez son autorisation.");
     });
   }
+
+  // Enregistrer un mouvement
+  async function enregistrer() {
+    if (!produitActuel) return;
+
+    const agent = document.getElementById("agent").value;
+    const pin = document.getElementById("pin").value;
+    const type = document.getElementById("type").value;
+    const quantite = document.getElementById("quantite").value;
+
+    if (!agent || !/^\d{4}$/.test(pin)) {
+      afficherMessage("Choisissez votre nom et saisissez votre PIN à 4 chiffres.");
+      return;
+    }
+
+    if (!quantite || !Number.isInteger(Number(quantite)) || Number(quantite) <= 0) {
+      afficherMessage("Saisissez une quantité entière valide.");
+      return;
+    }
+
+    const bouton = document.getElementById("valider");
+    bouton.disabled = true;
+    afficherMessage("Enregistrement en cours...");
+
+    const operationId = (window.crypto && crypto.randomUUID)
+      ? crypto.randomUUID()
+      : String(Date.now()) + "-" + Math.random();
+
+    try {
+      const resultat = await appelerAPI({
+        action: "mouvement",
+        reference: produitActuel.reference,
+        type: type,
+        quantite: quantite,
+        agent: agent,
+        pin: pin,
+        operationId: operationId
+      });
+
+      if (!resultat.ok) {
+        afficherMessage(resultat.message || "Erreur d'enregistrement.");
+        return;
+      }
+
+      document.getElementById("stock").textContent = resultat.nouveauStock;
+      produitActuel.stock = resultat.nouveauStock;
+
+      document.getElementById("quantite").value = "";
+      document.getElementById("pin").value = "";
+
+      afficherMessage(
+        "Mouvement enregistré ! Nouveau stock : " + resultat.nouveauStock
+      );
+
+    } catch (e) {
+      afficherMessage(e.message);
+
+    } finally {
+      bouton.disabled = false;
+    }
+  }
+
+  // Revenir à la recherche
+  function nouvelleRecherche() {
+    produitActuel = null;
+
+    document.getElementById("produit").classList.add("cache");
+    document.getElementById("code").value = "";
+    document.getElementById("quantite").value = "";
+    document.getElementById("pin").value = "";
+
+    afficherMessage("Prêt à scanner.");
+  }
+
+  function afficherMessage(texte) {
+    document.getElementById("message").textContent = texte;
+  }
+
+  // Charger les agents au démarrage
+  chargerAgents();
 </script>
 </body>
 </html>
